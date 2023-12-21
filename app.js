@@ -1,6 +1,7 @@
 const express = require('express');
 const ffmpeg = require('fluent-ffmpeg');
 const cors = require('cors');
+const fs = require('fs');
 const { Storage } = require('@google-cloud/storage');
 const storage = new Storage();
 const app = express();
@@ -11,25 +12,46 @@ app.use(express.json());
 app.use(cors());
 
 // Function to extract audio from video
-async function extractAudioFromVideo(videoPath, outputPath, bucketName) {
-    const outputFileName = outputPath.split('/').pop(); // Assumes outputPath is a path with directories
-    const tempFilePath = `/tmp/${outputFileName}`;
+async function extractAudioFromVideo(gcsUri, outputPath, bucketName) {
+    const videoFileName = gcsUri.split('/').pop();
+    const videoFilePath = `/tmp/${videoFileName}`;
+    const outputFileName = outputPath.split('/').pop();
+    const tempOutputPath = `/tmp/${outputFileName}`;
+
+    // Download the video file from GCS to the local filesystem
+    await storage.bucket(bucketName).file(gcsUri.replace(`gs://${bucketName}/`, '')).download({
+        destination: videoFilePath,
+    });
+
     return new Promise((resolve, reject) => {
-        ffmpeg(videoPath)
-            .output(tempFilePath)
+        ffmpeg(videoFilePath)
+            .output(tempOutputPath)
             .noVideo()
             .audioCodec('libmp3lame')
             .on('end', async () => {
                 try {
-                    await storage.bucket(bucketName).upload(tempFilePath, {
+                    // Upload the extracted audio file to GCS
+                    await storage.bucket(bucketName).upload(tempOutputPath, {
                         destination: `audio/${outputFileName}`,
                     });
+                    // Clean up the temporary files
+                    fs.unlinkSync(videoFilePath);
+                    fs.unlinkSync(tempOutputPath);
                     resolve(`gs://${bucketName}/audio/${outputFileName}`);
                 } catch (error) {
                     reject(error);
                 }
             })
-            .on('error', (err) => reject(err))
+            .on('error', (err) => {
+                // Clean up the temporary files in case of an error
+                if (fs.existsSync(videoFilePath)) {
+                    fs.unlinkSync(videoFilePath);
+                }
+                if (fs.existsSync(tempOutputPath)) {
+                    fs.unlinkSync(tempOutputPath);
+                }
+                reject(err);
+            })
             .run();
     });
 }
