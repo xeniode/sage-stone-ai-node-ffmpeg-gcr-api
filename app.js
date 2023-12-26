@@ -7,6 +7,22 @@ const storage = new Storage();
 const app = express();
 const port = process.env.PORT || 3000;
 
+/* Commands to build and deploy to gcloud
+ gcloud builds submit --tag us-central1-docker.pkg.dev/owl-test-auto-bot/docker-ffmpeg/node-ffmpeg-gcr
+ docker push us-central1-docker.pkg.dev/owl-test-auto-bot/docker-ffmpeg/node-ffmpeg-gcr
+ gcloud run deploy node-ffmpeg-gcr --image us-central1-docker.pkg.dev/owl-test-auto-bot/docker-ffmpeg/node-ffmpeg-gcr --platform managed --region us-central1
+*/
+
+/* Payload object
+
+{
+  "videoPath": "user-data/WASPd41xDcPhoNzLgVFJfpY8J8t1/projects/BcO7i5gxy7zVYXPWS3BF/videos/ElonMusk-Sam-OpenAI-Firing.mp4",
+  "outputPath": "output/audio.mp3",
+  "bucketName": "owl-test-auto-bot.appspot.com"
+}
+
+*/
+
 // Middleware to parse JSON and handle CORS
 app.use(express.json());
 app.use(cors());
