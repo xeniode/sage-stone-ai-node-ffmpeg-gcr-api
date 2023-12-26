@@ -81,6 +81,48 @@ async function extractAudioFromVideo(gcsUri, outputPath, bucketName) {
     });
 }
 
+// Function to generate a thumbnail from video
+async function generateThumbnail(gcsUri, thumbnailTime, bucketName) {
+    const videoFileName = gcsUri.split('/').pop();
+    const thumbnailFileName = `thumbnail-${Date.now()}.png`;
+    const videoFilePath = await downloadVideoFromGCS(gcsUri, bucketName);
+    const thumbnailFilePath = `/tmp/${thumbnailFileName}`;
+
+    return new Promise((resolve, reject) => {
+        ffmpeg(videoFilePath)
+            .screenshots({
+                timestamps: [thumbnailTime],
+                filename: thumbnailFileName,
+                folder: '/tmp',
+                size: '320x240'
+            })
+            .on('end', async () => {
+                try {
+                    // Upload the thumbnail image to GCS
+                    await storage.bucket(bucketName).upload(thumbnailFilePath, {
+                        destination: `thumbnails/${thumbnailFileName}`,
+                    });
+                    // Clean up the temporary files
+                    fs.unlinkSync(videoFilePath);
+                    fs.unlinkSync(thumbnailFilePath);
+                    resolve(`gs://${bucketName}/thumbnails/${thumbnailFileName}`);
+                } catch (error) {
+                    reject(error);
+                }
+            })
+            .on('error', (err) => {
+                // Clean up the temporary files in case of an error
+                if (fs.existsSync(videoFilePath)) {
+                    fs.unlinkSync(videoFilePath);
+                }
+                if (fs.existsSync(thumbnailFilePath)) {
+                    fs.unlinkSync(thumbnailFilePath);
+                }
+                reject(err);
+            });
+    });
+}
+
 // POST endpoint to trigger audio extraction
 app.post('/extract-audio', async (req, res) => {
     try {
@@ -92,6 +134,20 @@ app.post('/extract-audio', async (req, res) => {
         res.send({ message: 'Audio extracted and uploaded successfully', audioPath: gcsAudioPath });
     } catch (error) {
         res.status(500).send({ message: 'Error extracting audio', error: error.message });
+    }
+});
+
+// POST endpoint to generate a thumbnail
+app.post('/generate-thumbnail', async (req, res) => {
+    try {
+        const { videoPath, thumbnailTime, bucketName } = req.body;
+        if (!bucketName) {
+            throw new Error('Bucket name is required');
+        }
+        const gcsThumbnailPath = await generateThumbnail(videoPath, thumbnailTime, bucketName);
+        res.send({ message: 'Thumbnail generated and uploaded successfully', thumbnailPath: gcsThumbnailPath });
+    } catch (error) {
+        res.status(500).send({ message: 'Error generating thumbnail', error: error.message });
     }
 });
 
