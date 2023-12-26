@@ -27,17 +27,26 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(cors());
 
-// Function to extract audio from video
-async function extractAudioFromVideo(gcsUri, outputPath, bucketName) {
+// Function to download video from GCS
+async function downloadVideoFromGCS(gcsUri, bucketName) {
     const videoFileName = gcsUri.split('/').pop();
     const videoFilePath = `/tmp/${videoFileName}`;
-    const outputFileName = outputPath.split('/').pop();
-    const tempOutputPath = `/tmp/${outputFileName}`;
 
     // Download the video file from GCS to the local filesystem
     await storage.bucket(bucketName).file(gcsUri.replace(`gs://${bucketName}/`, '')).download({
         destination: videoFilePath,
     });
+
+    return videoFilePath;
+}
+
+// Function to extract audio from video
+async function extractAudioFromVideo(gcsUri, outputPath, bucketName) {
+    const outputFileName = outputPath.split('/').pop();
+    const tempOutputPath = `/tmp/${outputFileName}`;
+
+    // Download the video file from GCS
+    const videoFilePath = await downloadVideoFromGCS(gcsUri, bucketName);
 
     return new Promise((resolve, reject) => {
         ffmpeg(videoFilePath)
