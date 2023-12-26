@@ -123,6 +123,48 @@ async function generateThumbnail(gcsUri, thumbnailTime, bucketName) {
     });
 }
 
+// Function to take a screenshot of the video at a given interval
+async function takeScreenshotAtInterval(gcsUri, interval, bucketName) {
+    const videoFileName = gcsUri.split('/').pop();
+    const screenshotFileName = `screenshot-${Date.now()}.png`;
+    const videoFilePath = await downloadVideoFromGCS(gcsUri, bucketName);
+    const screenshotFilePath = `/tmp/${screenshotFileName}`;
+
+    return new Promise((resolve, reject) => {
+        ffmpeg(videoFilePath)
+            .screenshots({
+                timestamps: [interval + 's'],
+                filename: screenshotFileName,
+                folder: '/tmp',
+                size: '320x240'
+            })
+            .on('end', async () => {
+                try {
+                    // Upload the screenshot image to GCS
+                    await storage.bucket(bucketName).upload(screenshotFilePath, {
+                        destination: `screenshots/${screenshotFileName}`,
+                    });
+                    // Clean up the temporary files
+                    fs.unlinkSync(videoFilePath);
+                    fs.unlinkSync(screenshotFilePath);
+                    resolve(`gs://${bucketName}/screenshots/${screenshotFileName}`);
+                } catch (error) {
+                    reject(error);
+                }
+            })
+            .on('error', (err) => {
+                // Clean up the temporary files in case of an error
+                if (fs.existsSync(videoFilePath)) {
+                    fs.unlinkSync(videoFilePath);
+                }
+                if (fs.existsSync(screenshotFilePath)) {
+                    fs.unlinkSync(screenshotFilePath);
+                }
+                reject(err);
+            });
+    });
+}
+
 // POST endpoint to trigger audio extraction
 app.post('/extract-audio', async (req, res) => {
     try {
@@ -148,6 +190,20 @@ app.post('/generate-thumbnail', async (req, res) => {
         res.send({ message: 'Thumbnail generated and uploaded successfully', thumbnailPath: gcsThumbnailPath });
     } catch (error) {
         res.status(500).send({ message: 'Error generating thumbnail', error: error.message });
+    }
+});
+
+// POST endpoint to take a screenshot at a given interval
+app.post('/take-screenshot-interval', async (req, res) => {
+    try {
+        const { videoPath, interval, bucketName } = req.body;
+        if (!bucketName) {
+            throw new Error('Bucket name is required');
+        }
+        const gcsScreenshotPath = await takeScreenshotAtInterval(videoPath, interval, bucketName);
+        res.send({ message: 'Screenshot taken and uploaded successfully', screenshotPath: gcsScreenshotPath });
+    } catch (error) {
+        res.status(500).send({ message: 'Error taking screenshot', error: error.message });
     }
 });
 
