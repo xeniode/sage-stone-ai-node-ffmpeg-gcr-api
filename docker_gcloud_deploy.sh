@@ -10,4 +10,4 @@ PYTUBE_VERSION=$(git describe --tags)
 
 # gcloud builds submit --tag us-central1-docker.pkg.dev/owl-test-auto-bot/docker-ffmpeg/pytube-beta
 
-gcloud run deploy pytube-beta --image us-central1-docker.pkg.dev/owl-test-auto-bot/docker-ffmpeg/node-ffmpeg-beta --platform managed --region us-central1
+gcloud run deploy node-ffmpeg-beta --image us-central1-docker.pkg.dev/owl-test-auto-bot/docker-ffmpeg/node-ffmpeg-beta --platform managed --region us-central1
