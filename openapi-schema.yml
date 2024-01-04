@@ -1,0 +1,105 @@
+openapi: 3.0.0
+info:
+  title: FFmpeg GCR API
+  version: 1.0.0
+  description: API for video and audio processing using FFmpeg in Google Cloud Run
+servers:
+  - url: http://localhost:3000
+    description: Development server
+paths:
+  /extract-audio:
+    post:
+      summary: Extract audio from a video file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                videoPath:
+                  type: string
+                  description: Path to the video file in Google Cloud Storage
+                outputPath:
+                  type: string
+                  description: Path for the output audio file
+                bucketName:
+                  type: string
+                  description: Google Cloud Storage bucket name
+              required:
+                - videoPath
+                - outputPath
+                - bucketName
+      responses:
+        '200':
+          description: Audio extracted and uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  audioPath:
+                    type: string
+        '500':
+          description: Error extracting audio
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+  /generate-thumbnail:
+    post:
+      summary: Generate a thumbnail from a video file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                videoPath:
+                  type: string
+                  description: Path to the video file in Google Cloud Storage
+                thumbnailTime:
+                  type: string
+                  description: Timestamp for the thumbnail in the video
+                bucketName:
+                  type: string
+                  description: Google Cloud Storage bucket name
+              required:
+                - videoPath
+                - thumbnailTime
+                - bucketName
+      responses:
+        '200':
+          description: Thumbnail generated and uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  thumbnailPath:
+                    type: string
+        '500':
+          description: Error generating thumbnail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+  # Additional endpoints would be defined here following the same structure
+components:
+  schemas:
+    # Reusable schemas (e.g., error responses) would be defined here
