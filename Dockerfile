@@ -7,7 +7,9 @@ RUN apt-get update && \
     apt-get clean
 
 # Set the working directory in the container
-WORKDIR /usr/src/app
+ENV APP_HOME /usr/src/app
+ENV PORT 3001
+WORKDIR $APP_HOME
 
 # Copy package.json and package-lock.json (if available)
 COPY package*.json ./
@@ -19,7 +21,7 @@ RUN npm install
 COPY . .
 
 # Your application's default port
-EXPOSE 3000
+EXPOSE $PORT
 
 # Define the command to run the app
 CMD ["node", "app.js"]
