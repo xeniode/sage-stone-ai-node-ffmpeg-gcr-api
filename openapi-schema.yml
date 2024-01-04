@@ -103,3 +103,137 @@ paths:
 components:
   schemas:
     # Reusable schemas (e.g., error responses) would be defined here
+  /take-screenshot-interval:
+    post:
+      summary: Take a screenshot of the video at a given interval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                videoPath:
+                  type: string
+                  description: Path to the video file in Google Cloud Storage
+                interval:
+                  type: string
+                  description: Interval in seconds to take the screenshot
+                bucketName:
+                  type: string
+                  description: Google Cloud Storage bucket name
+              required:
+                - videoPath
+                - interval
+                - bucketName
+      responses:
+        '200':
+          description: Screenshot taken and uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  screenshotPath:
+                    type: string
+        '500':
+          description: Error taking screenshot
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+  /split-m4a-audio:
+    post:
+      summary: Split M4A audio file into chunks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                audioPath:
+                  type: string
+                  description: Path to the M4A audio file in Google Cloud Storage
+                bucketName:
+                  type: string
+                  description: Google Cloud Storage bucket name
+              required:
+                - audioPath
+                - bucketName
+      responses:
+        '200':
+          description: Audio split into chunks and uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  audioChunkPaths:
+                    type: array
+                    items:
+                      type: string
+        '500':
+          description: Error splitting audio
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+  /split-mp3-audio:
+    post:
+      summary: Split MP3 audio file into chunks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                audioPath:
+                  type: string
+                  description: Path to the MP3 audio file in Google Cloud Storage
+                bucketName:
+                  type: string
+                  description: Google Cloud Storage bucket name
+              required:
+                - audioPath
+                - bucketName
+      responses:
+        '200':
+          description: Audio split into chunks and uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  audioChunkPaths:
+                    type: array
+                    items:
+                      type: string
+        '500':
+          description: Error splitting audio
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
