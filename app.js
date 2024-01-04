@@ -219,6 +219,60 @@ async function splitM4aAudio(gcsUri, bucketName) {
     });
 }
 
+// Function to split MP3 audio file into chunks
+async function splitMp3Audio(gcsUri, bucketName) {
+    const audioFileName = gcsUri.split('/').pop();
+    const audioFilePath = await downloadVideoFromGCS(gcsUri, bucketName);
+    const desiredSizeBytes = 20 * 1024 * 1024; // 20MB in bytes
+    const audioFileDir = gcsUri.substring(0, gcsUri.lastIndexOf('/') + 1);
+
+    // Get average bitrate of the input MP3 file in kilobits per second (kbps)
+    const bitrateKbps = await new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(audioFilePath, (err, metadata) => {
+            if (err) reject(err);
+            else resolve(metadata.format.bit_rate / 1000);
+        });
+    });
+
+    // Calculate approximate segment duration based on desired size and bitrate
+    const segmentDuration = (desiredSizeBytes * 8) / (bitrateKbps * 1000);
+
+    // Use FFmpeg to split the MP3 into segments with calculated duration
+    return new Promise((resolve, reject) => {
+        ffmpeg(audioFilePath)
+            .output('/tmp/output_chunk_%03d.mp3')
+            .outputOptions([
+                '-f segment',
+                `-segment_time ${segmentDuration}`,
+                '-c copy',
+                '-map 0',
+                '-segment_format mp3'
+            ])
+            .on('end', async () => {
+                try {
+                    // Upload the audio chunks to GCS
+                    const files = fs.readdirSync('/tmp').filter(file => file.startsWith('output_chunk_'));
+                    const uploadPromises = files.map(file => {
+                        const chunkPath = `${audioFileDir}audio_chunks/${file}`;
+                        return storage.bucket(bucketName).upload(`/tmp/${file}`, {
+                            destination: chunkPath,
+                        });
+                    });
+                    await Promise.all(uploadPromises);
+                    // Clean up the temporary files
+                    files.forEach(file => fs.unlinkSync(`/tmp/${file}`));
+                    resolve(files.map(file => `gs://${bucketName}/${chunkPath}`));
+                } catch (error) {
+                    reject(error);
+                }
+            })
+            .on('error', (err) => {
+                reject(err);
+            })
+            .run();
+    });
+}
+
 // POST endpoint to trigger audio extraction
 app.post('/extract-audio', async (req, res) => {
     try {
@@ -269,6 +323,20 @@ app.post('/split-m4a-audio', async (req, res) => {
             throw new Error('Bucket name is required');
         }
         const gcsAudioChunkPaths = await splitM4aAudio(audioPath, bucketName);
+        res.send({ message: 'Audio split into chunks and uploaded successfully', audioChunkPaths: gcsAudioChunkPaths });
+    } catch (error) {
+        res.status(500).send({ message: 'Error splitting audio', error: error.message });
+    }
+});
+
+// POST endpoint to split MP3 audio file into chunks
+app.post('/split-mp3-audio', async (req, res) => {
+    try {
+        const { audioPath, bucketName } = req.body;
+        if (!bucketName) {
+            throw new Error('Bucket name is required');
+        }
+        const gcsAudioChunkPaths = await splitMp3Audio(audioPath, bucketName);
         res.send({ message: 'Audio split into chunks and uploaded successfully', audioChunkPaths: gcsAudioChunkPaths });
     } catch (error) {
         res.status(500).send({ message: 'Error splitting audio', error: error.message });
