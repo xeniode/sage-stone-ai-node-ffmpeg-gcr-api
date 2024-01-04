@@ -170,6 +170,7 @@ async function splitM4aAudio(gcsUri, bucketName) {
     const audioFileName = gcsUri.split('/').pop();
     const audioFilePath = await downloadVideoFromGCS(gcsUri, bucketName);
     const desiredSizeBytes = 20 * 1024 * 1024; // 20MB in bytes
+    const audioFileDir = gcsUri.substring(0, gcsUri.lastIndexOf('/') + 1);
 
     // Get average bitrate of the input M4A file in kilobits per second (kbps)
     const bitrateKbps = await new Promise((resolve, reject) => {
@@ -198,14 +199,15 @@ async function splitM4aAudio(gcsUri, bucketName) {
                     // Upload the audio chunks to GCS
                     const files = fs.readdirSync('/tmp').filter(file => file.startsWith('output_chunk_'));
                     const uploadPromises = files.map(file => {
+                        const chunkPath = `${audioFileDir}audio_chunks/${file}`;
                         return storage.bucket(bucketName).upload(`/tmp/${file}`, {
-                            destination: `audio_chunks/${file}`,
+                            destination: chunkPath,
                         });
                     });
                     await Promise.all(uploadPromises);
                     // Clean up the temporary files
                     files.forEach(file => fs.unlinkSync(`/tmp/${file}`));
-                    resolve(files.map(file => `gs://${bucketName}/audio_chunks/${file}`));
+                    resolve(files.map(file => `gs://${bucketName}/${chunkPath}`));
                 } catch (error) {
                     reject(error);
                 }
