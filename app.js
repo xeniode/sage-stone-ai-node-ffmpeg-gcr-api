@@ -209,11 +209,13 @@ async function splitM4aAudio(gcsUri, bucketName) {
           const uploadPromises = files.map((file) => {
             return storage.bucket(bucketName).upload(`/tmp/${file}`, {
               destination: `${audioFileDir}audio_chunks/${file}`,
+              destination: `${audioFileDir}audio_chunks/${file}`,
             });
           });
           await Promise.all(uploadPromises);
           // Clean up the temporary files
           files.forEach((file) => fs.unlinkSync(`/tmp/${file}`));
+          resolve(files.map((file) => `gs://${bucketName}/${audioFileDir}audio_chunks/${file}`));
           resolve(files.map((file) => `gs://${bucketName}/${audioFileDir}audio_chunks/${file}`));
         } catch (error) {
           reject(error);
@@ -262,14 +264,15 @@ async function splitMp3Audio(gcsUri, bucketName) {
             .readdirSync("/tmp")
             .filter((file) => file.startsWith("output_chunk_"));
           const uploadPromises = files.map((file) => {
-            const chunkPath = `${audioFileDir}audio_chunks/${file}`;
             return storage.bucket(bucketName).upload(`/tmp/${file}`, {
+              destination: `${audioFileDir}audio_chunks/${file}`,
               destination: `${audioFileDir}audio_chunks/${file}`,
             });
           });
           await Promise.all(uploadPromises);
           // Clean up the temporary files
           files.forEach((file) => fs.unlinkSync(`/tmp/${file}`));
+          resolve(files.map((file) => `gs://${bucketName}/${audioFileDir}audio_chunks/${file}`));
           resolve(files.map((file) => `gs://${bucketName}/${audioFileDir}audio_chunks/${file}`));
         } catch (error) {
           reject(error);
