@@ -232,6 +232,7 @@ async function splitM4aAudio(gcsUri, bucketName) {
 // Function to split MP3 audio file into chunks
 async function splitMp3Audio(gcsUri, bucketName) {
   const audioFileName = gcsUri.split("/").pop();
+  const prefix = audioFileName.split('_')[0];
   const audioFilePath = await downloadVideoFromGCS(gcsUri, bucketName);
   const desiredSizeBytes = 20 * 1024 * 1024; // 20MB in bytes
   const audioFileDir = gcsUri.substring(0, gcsUri.lastIndexOf("/") + 1);
@@ -250,7 +251,7 @@ async function splitMp3Audio(gcsUri, bucketName) {
   // Use FFmpeg to split the MP3 into segments with calculated duration
   return new Promise((resolve, reject) => {
     ffmpeg(audioFilePath)
-      .output("/tmp/output_chunk_%03d.mp3")
+      .output(`/tmp/${prefix}_chunk_%03d.mp3`)
       .outputOptions([
         "-f segment",
         `-segment_time ${segmentDuration}`,
@@ -263,7 +264,7 @@ async function splitMp3Audio(gcsUri, bucketName) {
           // Upload the audio chunks to GCS
           const files = fs
             .readdirSync("/tmp")
-            .filter((file) => file.startsWith("output_chunk_"));
+            .filter((file) => file.startsWith(`${prefix}_chunk_`));
           const uploadPromises = files.map((file) => {
             return storage.bucket(bucketName).upload(`/tmp/${file}`, {
               destination: `${audioFileDir}audio_chunks/${file}`,
