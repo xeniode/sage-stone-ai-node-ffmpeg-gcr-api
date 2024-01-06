@@ -173,6 +173,7 @@ async function takeScreenshotAtInterval(gcsUri, interval, bucketName) {
 // Function to split M4A audio file into chunks
 async function splitM4aAudio(gcsUri, bucketName) {
   const audioFileName = gcsUri.split("/").pop();
+  const prefix = audioFileName.split('_')[0];
   const audioFilePath = await downloadVideoFromGCS(gcsUri, bucketName);
   const desiredSizeBytes = 20 * 1024 * 1024; // 20MB in bytes
   const audioFileDir = gcsUri.substring(0, gcsUri.lastIndexOf("/") + 1);
@@ -192,7 +193,7 @@ async function splitM4aAudio(gcsUri, bucketName) {
   // Use FFmpeg to split the M4A into segments with calculated duration
   return new Promise((resolve, reject) => {
     ffmpeg(audioFilePath)
-      .output("/tmp/output_chunk_%03d.m4a")
+      .output(`/tmp/${prefix}_chunk_%03d.m4a`)
       .outputOptions([
         "-f segment",
         `-segment_time ${segmentDuration}`,
@@ -205,7 +206,7 @@ async function splitM4aAudio(gcsUri, bucketName) {
           // Upload the audio chunks to GCS
           const files = fs
             .readdirSync("/tmp")
-            .filter((file) => file.startsWith("output_chunk_"));
+            .filter((file) => file.startsWith(`${prefix}_chunk_`));
           const uploadPromises = files.map((file) => {
             return storage.bucket(bucketName).upload(`/tmp/${file}`, {
               destination: `${audioFileDir}audio_chunks/${file}`,
